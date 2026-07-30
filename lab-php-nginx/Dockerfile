@@ -42,7 +42,7 @@ RUN php8.1 -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
 # 6. Supervisor
 RUN apt-get install -y supervisor
 
-# 7. Herramientas de compilacion (para futuro, NO instalan nada de SQL Server)
+# 7. Herramientas de compilacion
 RUN apt-get install -y \
     build-essential \
     gcc \
@@ -59,7 +59,37 @@ RUN apt-get install -y \
     git \
     unzip
 
-# 8. Crear usuarios del sistema
+# 8. Microsoft ODBC Driver 18 para SQL Server
+RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+    | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
+    > /etc/apt/sources.list.d/microsoft-prod.list && \
+    apt-get update && \
+    ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
+
+# 9. Compilar extensiones SQL Server para PHP 8.1
+RUN update-alternatives --set phpize /usr/bin/phpize8.1 && \
+    update-alternatives --set php-config /usr/bin/php-config8.1 && \
+    pecl install sqlsrv && \
+    pecl install pdo_sqlsrv
+
+# 10. Compilar extensiones SQL Server para PHP 8.4
+RUN update-alternatives --set phpize /usr/bin/phpize8.4 && \
+    update-alternatives --set php-config /usr/bin/php-config8.4 && \
+    pecl install sqlsrv && \
+    pecl install pdo_sqlsrv
+
+# 11. Habilitar extensiones en PHP 8.1
+RUN echo "extension=sqlsrv.so" > /etc/php/8.1/mods-available/sqlsrv.ini && \
+    echo "extension=pdo_sqlsrv.so" > /etc/php/8.1/mods-available/pdo_sqlsrv.ini && \
+    phpenmod -v 8.1 sqlsrv pdo_sqlsrv
+
+# 12. Habilitar extensiones en PHP 8.4
+RUN echo "extension=sqlsrv.so" > /etc/php/8.4/mods-available/sqlsrv.ini && \
+    echo "extension=pdo_sqlsrv.so" > /etc/php/8.4/mods-available/pdo_sqlsrv.ini && \
+    phpenmod -v 8.4 sqlsrv pdo_sqlsrv
+
+# 13. Crear usuarios del sistema
 # phpuser (uid 1000) corre PHP-FPM, coincide con uid del host para compatibilidad de archivos
 RUN groupadd -g 1000 phpuser && \
     useradd -m -u 1000 -g phpuser -s /bin/bash phpuser && \
@@ -70,13 +100,13 @@ RUN groupadd -g 2000 devuser && \
     usermod -aG www-data devuser && \
     usermod -aG phpuser devuser
 
-# 9. Configuracion de Supervisor
+# 14. Configuracion de Supervisor
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# 10. Crear directorio de sockets PHP-FPM
+# 15. Crear directorio de sockets PHP-FPM
 RUN mkdir -p /run/php
 
-# 11. Configuracion por defecto de PHP-FPM: escuchar en socket unix
+# 16. Configuracion por defecto de PHP-FPM: escuchar en socket unix
 RUN sed -i 's|^user = www-data|user = phpuser|' /etc/php/8.1/fpm/pool.d/www.conf && \
     sed -i 's|^group = www-data|group = phpuser|' /etc/php/8.1/fpm/pool.d/www.conf && \
     sed -i 's|^listen = /run/php/php8.1-fpm.sock|listen = /run/php/php8.1-fpm.sock|' /etc/php/8.1/fpm/pool.d/www.conf && \
@@ -89,7 +119,7 @@ RUN sed -i 's|^user = www-data|user = phpuser|' /etc/php/8.4/fpm/pool.d/www.conf
     sed -i 's|^;listen.owner = www-data|listen.owner = www-data|' /etc/php/8.4/fpm/pool.d/www.conf && \
     sed -i 's|^;listen.group = www-data|listen.group = www-data|' /etc/php/8.4/fpm/pool.d/www.conf
 
-# 12. Limpiar cache
+# 17. Limpiar cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 80

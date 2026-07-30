@@ -51,10 +51,9 @@ supervisord (root)
 ### Herramientas de compilacion (para drivers SQL Server)
 - `build-essential`, `gcc`, `g++`, `make`, `autoconf`, `automake`, `libtool`, `php-pear`, `curl`, `wget`, `git`, `unzip`
 
-### NO instalado (pendiente para Fase 2)
-- ODBC Driver 18 para SQL Server
-- Extension `pdo_sqlsrv` (via PECL)
-- Extension `sqlsrv` (via PECL)
+### SQL Server (instalado en Fase 2)
+- ODBC Driver 18 (`msodbcsql18` + `unixodbc-dev`)
+- `sqlsrv` + `pdo_sqlsrv` compilados via PECL para PHP 8.1 y 8.4
 
 ---
 
@@ -111,7 +110,7 @@ pruebas-sqlserver/
 ├── AGENTS.md                          <- Estado historico del proyecto
 ├── docker-compose.yml                 <- Orquestador
 ├── lab-php-nginx/
-│   ├── Dockerfile                     <- Imagen con PHP 8.1/8.4, Nginx, Supervisor
+│   ├── Dockerfile                     <- Imagen con PHP 8.1/8.4, Nginx, Supervisor, sqlsrv
 │   └── supervisord.conf               <- 3 programas: nginx, php-fpm81, php-fpm84
 ├── lab-sqlserver/
 │   ├── entrypoint.sh                  <- Inicia SQL Server y ejecuta init-db.sql

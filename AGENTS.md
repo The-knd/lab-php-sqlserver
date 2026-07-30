@@ -54,8 +54,8 @@ Volumen persistente: `sqlserver-data:/var/opt/mssql`
 | **Supervisor** | `supervisor` | Gestiona 3 procesos (ver abajo) |
 | **Build tools** | `build-essential`, `gcc`, `g++`, `make`, `autoconf`, `automake`, `libtool`, `php8.1-dev`, `php8.4-dev`, `php-pear`, `curl`, `wget`, `git`, `unzip` | Preparado para compilar drivers SQL Server |
 | **Usuarios** | `root`, `www-data`, `phpuser`, `devuser` | `phpuser` (uid 1000) ejecuta PHP-FPM y coincide con uid del host. `devuser` (uid 2000) para tareas administrativas. Ambos en grupo `www-data`. |
-
-**NO instala**: ODBC Driver, `pdo_sqlsrv`, `sqlsrv`, ni ninguna extension relacionada con SQL Server.
+| **ODBC Driver 18** | `msodbcsql18`, `unixodbc-dev` | Microsoft repo con keyring moderno (no apt-key) |
+| **sqlsrv + pdo_sqlsrv** | Compilado via PECL para cada PHP | `update-alternatives` para versiones 8.1 y 8.4 |
 
 #### Supervisor: procesos gestionados
 
