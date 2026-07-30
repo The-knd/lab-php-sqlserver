@@ -28,7 +28,8 @@ services:
       dockerfile: Dockerfile
     container_name: lab-php-nginx
     ports:
-      - "8001:80"
+      - "8001:8081"
+      - "8002:8082"
     volumes:
       - ./laravel-apps/app-php81:/var/www/app-php81
       - ./laravel-apps/app-php84:/var/www/app-php84
