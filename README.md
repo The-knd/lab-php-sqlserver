@@ -102,6 +102,92 @@ docker logs lab-php-nginx
 
 ---
 
+## Reproduccion del laboratorio completo (Fase 2)
+
+Flujo para dejar el laboratorio funcionando desde cero sobre un checkout fresco. La infraestructura (contenedores, drivers sqlsrv, ODBC 18, Nginx, usuarios, base de datos inicial) se reconstruye solo con Docker; los pasos manuales restantes son exclusivos de las apps Laravel porque `vendor/` y `.env` no estan versionados (solo `.env.example`).
+
+### 1. Prerequisitos
+
+- Docker Engine + Docker Compose.
+- Usuario host con **uid 1000** para que coincida con `phpuser` del contenedor (bind mounts escribibles por PHP-FPM). Si el uid difiere, los permisos se normalizan en el paso 5.
+
+### 2. Clonar, construir y levantar
+
+```bash
+cd pruebas-sqlserver
+docker compose build lab-php-nginx
+docker compose up -d
+```
+
+- `lab-sqlserver` ejecuta `entrypoint.sh` + `init-db.sql` solo la primera vez que se crea el volumen (crea la DB `laboratorio` y la tabla `test_connectivity`). Para reejecutar desde cero: `docker compose down -v && docker compose up -d`.
+- `lab-php-nginx` ya incluye `sqlsrv` + `pdo_sqlsrv` compilados para PHP 8.1 y 8.4 (con `--with-php-config` para instalar cada `.so` en su directorio ABI) y ODBC Driver 18.
+
+### 3. Preparar los `.env` de las apps
+
+```bash
+cp laravel-apps/app-php81/.env.example laravel-apps/app-php81/.env
+cp laravel-apps/app-php84/.env.example laravel-apps/app-php84/.env
+```
+
+Valores que deben quedar en ambos (estado de trabajo actual):
+
+| Variable | app-php81 | app-php84 |
+|----------|-----------|-----------|
+| `DB_CONNECTION` | `sqlite` | `sqlite` |
+| `SESSION_DRIVER` | `file` | `file` |
+
+En `app-php81` el ejemplo ya trae `CACHE_DRIVER=file` y `QUEUE_CONNECTION=sync`. En `app-php84` ajustar `CACHE_STORE=file` y `QUEUE_CONNECTION=sync` para evitar dependencia de tablas de base de datos.
+
+Crear el archivo de SQLite que usa la conexion sqlite:
+
+```bash
+touch laravel-apps/app-php81/database/database.sqlite
+touch laravel-apps/app-php84/database/database.sqlite
+```
+
+### 4. Instalar dependencias y generar APP_KEY
+
+```bash
+docker exec -u phpuser lab-php-nginx php8.1 /usr/local/bin/composer install --working-dir=/var/www/app-php81
+docker exec -u phpuser lab-php-nginx php8.4 /usr/local/bin/composer install --working-dir=/var/www/app-php84
+
+docker exec -u phpuser lab-php-nginx php8.1 /var/www/app-php81/artisan key:generate
+docker exec -u phpuser lab-php-nginx php8.4 /var/www/app-php84/artisan key:generate
+```
+
+Se corre como `phpuser` para que `vendor/`, `.env` y `storage/` queden con uid 1000 y sigan editables desde el host.
+
+### 5. Permisos de los bind mounts
+
+```bash
+docker exec lab-php-nginx chown -R phpuser:phpuser /var/www/app-php81 /var/www/app-php84
+```
+
+### 6. Verificar el laboratorio
+
+Drivers SQL Server cargados en ambas versiones (deben mostrar `pdo_sqlsrv` y `sqlsrv` sin warnings):
+
+```bash
+docker exec lab-php-nginx php8.1 -m | grep -E 'sqlsrv|pdo_sqlsrv'
+docker exec lab-php-nginx php8.4 -m | grep -E 'sqlsrv|pdo_sqlsrv'
+```
+
+Conexion a SQL Server (ODBC 18 exige confiar en el certificado autofirmado del contenedor via `TrustServerCertificate=yes`):
+
+```bash
+docker exec lab-php-nginx php8.1 -r '$c=new PDO("sqlsrv:Server=lab-sqlserver,1433;Database=master;TrustServerCertificate=yes","sa","Test1234!");echo "PHP 8.1 OK: ".$c->query("SELECT @@VERSION AS v")->fetch()["v"]."\n";'
+docker exec lab-php-nginx php8.4 -r '$c=new PDO("sqlsrv:Server=lab-sqlserver,1433;Database=master;TrustServerCertificate=yes","sa","Test1234!");echo "PHP 8.4 OK: ".$c->query("SELECT @@VERSION AS v")->fetch()["v"]."\n";'
+```
+
+Apps respondiendo:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8001/   # PHP 8.1 / Laravel 10
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8002/   # PHP 8.4 / Laravel 12
+```
+
+---
+
 ## Estructura de directorios
 
 ```

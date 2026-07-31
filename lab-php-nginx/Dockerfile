@@ -67,17 +67,25 @@ RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
     apt-get update && \
     ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
 
-# 9. Compilar extensiones SQL Server para PHP 8.1
-RUN update-alternatives --set phpize /usr/bin/phpize8.1 && \
-    update-alternatives --set php-config /usr/bin/php-config8.1 && \
-    pecl install sqlsrv && \
-    pecl install pdo_sqlsrv
+# 9. Compilar extensiones SQL Server para PHP 8.1 (manual, via phpize8.1)
+RUN cd /tmp && \
+    pecl download sqlsrv-5.13.1 && \
+    pecl download pdo_sqlsrv-5.13.1 && \
+    tar xzf sqlsrv-*.tgz && cd sqlsrv-* && \
+    phpize8.1 && ./configure --with-php-config=/usr/bin/php-config8.1 && make -j"$(nproc)" && make install && \
+    cd /tmp && \
+    tar xzf pdo_sqlsrv-*.tgz && cd pdo_sqlsrv-* && \
+    phpize8.1 && ./configure --with-php-config=/usr/bin/php-config8.1 && make -j"$(nproc)" && make install
 
-# 10. Compilar extensiones SQL Server para PHP 8.4
-RUN update-alternatives --set phpize /usr/bin/phpize8.4 && \
-    update-alternatives --set php-config /usr/bin/php-config8.4 && \
-    pecl install sqlsrv && \
-    pecl install pdo_sqlsrv
+# 10. Compilar extensiones SQL Server para PHP 8.4 (manual, via phpize8.4)
+RUN cd /tmp && \
+    pecl download sqlsrv-5.13.1 && \
+    pecl download pdo_sqlsrv-5.13.1 && \
+    tar xzf sqlsrv-*.tgz && cd sqlsrv-* && \
+    phpize8.4 && ./configure --with-php-config=/usr/bin/php-config8.4 && make -j"$(nproc)" && make install && \
+    cd /tmp && \
+    tar xzf pdo_sqlsrv-*.tgz && cd pdo_sqlsrv-* && \
+    phpize8.4 && ./configure --with-php-config=/usr/bin/php-config8.4 && make -j"$(nproc)" && make install
 
 # 11. Habilitar extensiones en PHP 8.1
 RUN echo "extension=sqlsrv.so" > /etc/php/8.1/mods-available/sqlsrv.ini && \
